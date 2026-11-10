@@ -1,0 +1,271 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FaceWorld</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f0f2f5;font-family:Arial;color:#1c1e21}
+header{background:#1877f2;color:white;padding:15px;font-size:25px;font-weight:bold;position:sticky;top:0}
+.container{max-width:650px;margin:20px auto;padding:10px}
+.card,.post{background:white;padding:16px;border-radius:10px;margin-bottom:15px;box-shadow:0 1px 3px #ccc}
+input,textarea{width:100%;padding:12px;margin:7px 0;border:1px solid #ddd;border-radius:8px}
+button{background:#1877f2;color:white;border:0;padding:11px 18px;border-radius:7px;cursor:pointer}
+button:hover{opacity:.85}
+.nav{display:flex;justify-content:space-around;background:white;padding:12px;position:sticky;top:57px}
+.nav button{background:transparent;color:#1877f2;font-weight:bold}
+.post img{width:100%;border-radius:8px;margin-top:10px}
+.actions{display:flex;gap:10px;margin-top:12px}
+.actions button{flex:1}
+.comment{background:#f0f2f5;padding:10px;border-radius:10px;margin-top:8px}
+.hidden{display:none}
+</style>
+</head>
+
+<body>
+
+<header>FaceWorld</header>
+
+<div class="nav">
+<button onclick="show('home')">Home</button>
+<button onclick="show('friends')">Friends</button>
+<button onclick="show('profile')">Profile</button>
+<button onclick="show('messages')">Messages</button>
+</div>
+
+<div class="container">
+
+<div id="login" class="card">
+<h2>Welcome to FaceWorld</h2>
+<input id="name" placeholder="Your name">
+<input id="email" placeholder="Email address">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login / Sign Up</button>
+</div>
+
+<div id="app" class="hidden">
+
+<div id="home">
+
+<div class="card">
+<h3>What's on your mind?</h3>
+<textarea id="postText" placeholder="Write something..."></textarea>
+<input id="image" placeholder="Paste image URL (optional)">
+<button onclick="post()">Post</button>
+</div>
+
+<h3>News Feed</h3>
+<div id="feed"></div>
+
+</div>
+
+<div id="friends" class="hidden">
+<div class="card">
+<h2>Friends</h2>
+<p>Welcome to the friends section.</p>
+<p>Friends from this browser will appear here.</p>
+</div>
+</div>
+
+<div id="profile" class="hidden">
+<div class="card">
+<h2>My Profile</h2>
+<h3 id="profileName"></h3>
+<p id="profileEmail"></p>
+</div>
+</div>
+
+<div id="messages" class="hidden">
+<div class="card">
+<h2>Messages</h2>
+<p>Welcome to FaceWorld Messenger.</p>
+<input id="message" placeholder="Write a message...">
+<button onclick="sendMessage()">Send</button>
+<div id="messagesList"></div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+
+let currentUser=localStorage.getItem("fw_user")||"";
+let currentEmail=localStorage.getItem("fw_email")||"";
+
+let posts=JSON.parse(localStorage.getItem("fw_posts")||"[]");
+let messages=JSON.parse(localStorage.getItem("fw_messages")||"[]");
+
+function login(){
+let name=document.getElementById("name").value.trim();
+let email=document.getElementById("email").value.trim();
+
+if(!name||!email){
+alert("Enter your name and email");
+return;
+}
+
+currentUser=name;
+currentEmail=email;
+
+localStorage.setItem("fw_user",name);
+localStorage.setItem("fw_email",email);
+
+document.getElementById("login").classList.add("hidden");
+document.getElementById("app").classList.remove("hidden");
+
+document.getElementById("profileName").innerText=name;
+document.getElementById("profileEmail").innerText=email;
+
+render();
+}
+
+function show(page){
+["home","friends","profile","messages"].forEach(p=>{
+document.getElementById(p).classList.add("hidden");
+});
+document.getElementById(page).classList.remove("hidden");
+}
+
+function post(){
+let text=document.getElementById("postText").value.trim();
+let image=document.getElementById("image").value.trim();
+
+if(!text&&!image){
+alert("Write something first");
+return;
+}
+
+if(image&&!/^https?:\/\//i.test(image)){
+alert("Enter a valid image URL");
+return;
+}
+
+posts.unshift({
+name:currentUser,
+text:text,
+image:image,
+likes:0,
+comments:[]
+});
+
+localStorage.setItem("fw_posts",JSON.stringify(posts));
+
+document.getElementById("postText").value="";
+document.getElementById("image").value="";
+
+render();
+}
+
+function like(index){
+posts[index].likes++;
+localStorage.setItem("fw_posts",JSON.stringify(posts));
+render();
+}
+
+function comment(index){
+let input=document.getElementById("comment"+index);
+let text=input.value.trim();
+
+if(!text)return;
+
+posts[index].comments.push({
+name:currentUser,
+text:text
+});
+
+localStorage.setItem("fw_posts",JSON.stringify(posts));
+render();
+}
+
+function render(){
+let feed=document.getElementById("feed");
+feed.innerHTML="";
+
+posts.forEach((p,i)=>{
+let div=document.createElement("div");
+div.className="post";
+
+let title=document.createElement("h3");
+title.textContent=p.name;
+
+let content=document.createElement("p");
+content.textContent=p.text;
+
+div.append(title,content);
+
+if(p.image){
+let img=document.createElement("img");
+img.src=p.image;
+img.alt="Post image";
+div.appendChild(img);
+}
+
+let actions=document.createElement("div");
+actions.className="actions";
+
+let likeButton=document.createElement("button");
+likeButton.textContent="👍 Like ("+p.likes+")";
+likeButton.onclick=()=>like(i);
+
+actions.appendChild(likeButton);
+div.appendChild(actions);
+
+p.comments.forEach(c=>{
+let commentDiv=document.createElement("div");
+commentDiv.className="comment";
+commentDiv.textContent=c.name+": "+c.text;
+div.appendChild(commentDiv);
+});
+
+let box=document.createElement("input");
+box.id="comment"+i;
+box.placeholder="Write a comment...";
+
+let send=document.createElement("button");
+send.textContent="Comment";
+send.onclick=()=>comment(i);
+
+div.append(box,send);
+feed.appendChild(div);
+});
+}
+
+function sendMessage(){
+let text=document.getElementById("message").value.trim();
+if(!text)return;
+
+messages.push(currentUser+": "+text);
+localStorage.setItem("fw_messages",JSON.stringify(messages));
+
+document.getElementById("message").value="";
+showMessages();
+}
+
+function showMessages(){
+document.getElementById("messagesList").innerHTML=
+messages.map(m=>"<p>"+escapeText(m)+"</p>").join("");
+}
+
+function escapeText(s){
+let div=document.createElement("div");
+div.textContent=s;
+return div.innerHTML;
+}
+
+if(currentUser){
+document.getElementById("login").classList.add("hidden");
+document.getElementById("app").classList.remove("hidden");
+document.getElementById("profileName").innerText=currentUser;
+document.getElementById("profileEmail").innerText=currentEmail;
+render();
+showMessages();
+}
+
+</script>
+
+</body>
+</html>
