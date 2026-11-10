@@ -1,0 +1,203 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Social Network</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f0f2f5;
+}
+
+header {
+  background: #1877f2;
+  color: white;
+  padding: 16px;
+  font-size: 25px;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+}
+
+.container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+.card {
+  background: white;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 1px 4px #ccc;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin: 7px 0;
+}
+
+button {
+  background: #1877f2;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.post {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+.post img {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.actions button {
+  flex: 1;
+}
+</style>
+</head>
+
+<body>
+
+<header>MySocial</header>
+
+<div class="container">
+
+<div class="card">
+<h3>Create Account</h3>
+<input id="username" placeholder="Your name">
+<input id="email" type="email" placeholder="Your email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="signup()">Sign Up</button>
+<p id="message"></p>
+</div>
+
+<div class="card">
+<h3>What's on your mind?</h3>
+<textarea id="postText" placeholder="Write something..."></textarea>
+<input id="postImage" type="url" placeholder="Image URL (optional)">
+<button onclick="createPost()">Post</button>
+</div>
+
+<h3>News Feed</h3>
+<div id="feed"></div>
+
+</div>
+
+<script>
+function signup() {
+  let name = document.getElementById("username").value;
+  let email = document.getElementById("email").value;
+  let password = document.getElementById("password").value;
+
+  if (!name || !email || !password) {
+    alert("Fill all fields!");
+    return;
+  }
+
+  localStorage.setItem("myName", name);
+  document.getElementById("message").innerText =
+    "Welcome " + name + "! Account created.";
+}
+
+function createPost() {
+  let text = document.getElementById("postText").value;
+  let image = document.getElementById("postImage").value;
+
+  if (!text && !image) {
+    alert("Write something first!");
+    return;
+  }
+
+  let posts = JSON.parse(localStorage.getItem("posts") || "[]");
+
+  posts.unshift({
+    name: localStorage.getItem("myName") || "Guest",
+    text: text,
+    image: image,
+    likes: 0
+  });
+
+  localStorage.setItem("posts", JSON.stringify(posts));
+
+  document.getElementById("postText").value = "";
+  document.getElementById("postImage").value = "";
+
+  showPosts();
+}
+
+function likePost(index) {
+  let posts = JSON.parse(localStorage.getItem("posts") || "[]");
+  posts[index].likes++;
+  localStorage.setItem("posts", JSON.stringify(posts));
+  showPosts();
+}
+
+function showPosts() {
+  let posts = JSON.parse(localStorage.getItem("posts") || "[]");
+  let feed = document.getElementById("feed");
+
+  feed.innerHTML = "";
+
+  posts.forEach((post, index) => {
+    let div = document.createElement("div");
+    div.className = "post";
+
+    let name = document.createElement("h3");
+    name.textContent = post.name;
+
+    let content = document.createElement("p");
+    content.textContent = post.text;
+
+    div.append(name, content);
+
+    if (post.image) {
+      let img = document.createElement("img");
+      img.src = post.image;
+      img.alt = "Post image";
+      div.appendChild(img);
+    }
+
+    let actions = document.createElement("div");
+    actions.className = "actions";
+
+    let like = document.createElement("button");
+    like.textContent = "👍 Like (" + post.likes + ")";
+    like.onclick = () => likePost(index);
+
+    actions.appendChild(like);
+    div.appendChild(actions);
+    feed.appendChild(div);
+  });
+}
+
+showPosts();
+</script>
+
+</body>
+</html>
