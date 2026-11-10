@@ -1,0 +1,495 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FaceWorld - Connect with Friends</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f0f2f5;font-family:Arial,sans-serif;color:#1c1e21}
+header{background:#1877f2;color:white;padding:13px 5%;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+header h1{margin:0;font-size:27px}
+main{max-width:700px;margin:20px auto;padding:10px}
+.card{background:white;padding:16px;margin-bottom:15px;border-radius:10px;box-shadow:0 1px 4px #ccc}
+input,textarea{width:100%;padding:12px;margin:7px 0;border:1px solid #ccd0d5;border-radius:7px;font-size:15px}
+textarea{min-height:85px;resize:vertical}
+button{border:0;border-radius:7px;padding:11px 15px;margin:4px;cursor:pointer;font-weight:bold}
+.blue{background:#1877f2;color:white}
+.grey{background:#e4e6eb;color:#222}
+.red{background:#e53935;color:white}
+.hidden{display:none}
+.post-image{width:100%;max-height:450px;object-fit:cover;border-radius:8px;margin-top:10px}
+.post-name{font-weight:bold}
+.small{font-size:13px;color:#65676b}
+.actions{border-top:1px solid #ddd;margin-top:12px;padding-top:8px}
+#status{padding:10px;color:#1877f2;text-align:center}
+h2,h3{margin-top:5px}
+hr{border:0;border-top:1px solid #ddd;margin:20px 0}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>FaceWorld</h1>
+<button class="grey hidden" id="logoutBtn">Logout</button>
+</header>
+
+<main>
+<div id="status">Welcome to FaceWorld</div>
+
+<!-- LOGIN AND SIGNUP -->
+<section id="authSection" class="card">
+<h2>Welcome to FaceWorld</h2>
+<p>Connect with friends and share your world.</p>
+
+<h3>Create account</h3>
+<input id="fullName" placeholder="Full name">
+<input id="email" type="email" placeholder="Email address">
+<input id="password" type="password" placeholder="Password (at least 6 characters)">
+<button class="blue" id="signupBtn">Create Account</button>
+
+<hr>
+
+<h3>Login</h3>
+<input id="loginEmail" type="email" placeholder="Email address">
+<input id="loginPassword" type="password" placeholder="Password">
+<button class="blue" id="loginBtn">Login</button>
+</section>
+
+<!-- WEBSITE -->
+<div id="appSection" class="hidden">
+
+<div class="card">
+<h2 id="welcomeName">Welcome!</h2>
+<p>Welcome to your FaceWorld account.</p>
+</div>
+
+<!-- CREATE POST -->
+<div class="card">
+<h3>What's on your mind?</h3>
+<textarea id="postContent" placeholder="Write something..."></textarea>
+<input id="postImage" type="file" accept="image/*">
+<button class="blue" id="postBtn">Publish Post</button>
+</div>
+
+<!-- SEARCH FRIENDS -->
+<div class="card">
+<h3>Find Friends</h3>
+<input id="friendSearch" placeholder="Search people by name">
+<button class="blue" id="searchBtn">Search</button>
+<div id="friendResults"></div>
+</div>
+
+<!-- REQUESTS -->
+<div class="card">
+<h3>Friend Requests</h3>
+<div id="friendRequests">Loading...</div>
+</div>
+
+<!-- FRIENDS -->
+<div class="card">
+<h3>My Friends</h3>
+<div id="myFriends">Loading...</div>
+</div>
+
+<!-- FEED -->
+<h2>News Feed</h2>
+<div id="feed">Loading posts...</div>
+
+</div>
+</main>
+
+<script type="module">
+import { createClient } from
+'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+/* YOUR SUPABASE SETTINGS */
+const SUPABASE_URL = "https://mnllhenwyjcysclwwpsk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_quuDFJ6D7OGj7DHga6gBEA_MA7XQsbI";
+
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+
+const $ = id => document.getElementById(id);
+
+function message(text) {
+  $("status").textContent = text;
+}
+
+function safe(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+  })[c]);
+}
+
+/* SIGN UP */
+$("signupBtn").onclick = async () => {
+  const name = $("fullName").value.trim();
+  const email = $("email").value.trim();
+  const password = $("password").value;
+
+  if (!name || !email || password.length < 6) {
+    message("Enter your name, email and password.");
+    return;
+  }
+
+  message("Creating account...");
+
+  const { error } = await db.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: name }
+    }
+  });
+
+  if (error) return message(error.message);
+
+  message("Account created! Check your email if confirmation is required.");
+};
+
+/* LOGIN */
+$("loginBtn").onclick = async () => {
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+
+  message("Logging in...");
+
+  const { error } = await db.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) message(error.message);
+};
+
+/* LOGOUT */
+$("logoutBtn").onclick = async () => {
+  const { error } = await db.auth.signOut();
+  if (error) message(error.message);
+};
+
+/* AUTHENTICATION */
+db.auth.onAuthStateChange(async (event, session) => {
+  currentUser = session?.user ?? null;
+
+  $("authSection").classList.toggle("hidden", !!currentUser);
+  $("appSection").classList.toggle("hidden", !currentUser);
+  $("logoutBtn").classList.toggle("hidden", !currentUser);
+
+  if (!currentUser) return;
+
+  const { data } = await db.from("profiles")
+    .select("full_name")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  $("welcomeName").textContent =
+    "Welcome, " + (data?.full_name || currentUser.email);
+
+  await loadPosts();
+  await loadFriends();
+});
+
+/* CREATE POST */
+$("postBtn").onclick = async () => {
+  const content = $("postContent").value.trim();
+  const file = $("postImage").files[0];
+
+  if (!content && !file) {
+    return message("Write a post or choose a picture.");
+  }
+
+  message("Publishing post...");
+
+  let imageUrl = null;
+
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      return message("Image must be smaller than 5 MB.");
+    }
+
+    const path = currentUser.id + "/" +
+      crypto.randomUUID() + "-" +
+      file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    const { error: uploadError } = await db.storage
+      .from("post-images")
+      .upload(path, file);
+
+    if (uploadError) return message(uploadError.message);
+
+    imageUrl = db.storage
+      .from("post-images")
+      .getPublicUrl(path).data.publicUrl;
+  }
+
+  const { error } = await db.from("posts").insert({
+    author_id: currentUser.id,
+    content,
+    image_url: imageUrl
+  });
+
+  if (error) return message(error.message);
+
+  $("postContent").value = "";
+  $("postImage").value = "";
+
+  message("Post published successfully!");
+  await loadPosts();
+};
+
+/* LOAD POSTS */
+async function loadPosts() {
+  $("feed").textContent = "Loading posts...";
+
+  const { data: posts, error } = await db
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    $("feed").textContent = error.message;
+    return;
+  }
+
+  if (!posts?.length) {
+    $("feed").textContent = "No posts yet. Publish your first post!";
+    return;
+  }
+
+  const userIds = [...new Set(posts.map(p => p.author_id))];
+  const postIds = posts.map(p => p.id);
+
+  const [pr, lr, cr] = await Promise.all([
+    db.from("profiles").select("id,full_name").in("id", userIds),
+    db.from("likes").select("post_id,user_id").in("post_id", postIds),
+    db.from("comments").select("*").in("post_id", postIds)
+      .order("created_at", { ascending: true })
+  ]);
+
+  if (pr.error || lr.error || cr.error) {
+    $("feed").textContent = "Could not load post details.";
+    return;
+  }
+
+  const profiles = pr.data || [];
+  const likes = lr.data || [];
+  const comments = cr.data || [];
+
+  const commentIds = [...new Set(comments.map(c => c.author_id))];
+  let commentProfiles = [];
+
+  if (commentIds.length) {
+    const result = await db.from("profiles")
+      .select("id,full_name").in("id", commentIds);
+    commentProfiles = result.data || [];
+  }
+
+  $("feed").innerHTML = posts.map(post => {
+    const author = profiles.find(p => p.id === post.author_id);
+    const postLikes = likes.filter(l => l.post_id === post.id);
+    const liked = postLikes.some(l => l.user_id === currentUser.id);
+    const postComments = comments.filter(c => c.post_id === post.id);
+
+    return `
+      <div class="card">
+        <div class="post-name">${safe(author?.full_name || "FaceWorld User")}</div>
+        <div class="small">${new Date(post.created_at).toLocaleString()}</div>
+
+        <p>${safe(post.content)}</p>
+
+        ${post.image_url
+          ? `<img class="post-image" src="${safe(post.image_url)}" alt="Post image">`
+          : ""}
+
+        <div class="small">
+          ${postLikes.length} Likes · ${postComments.length} Comments
+        </div>
+
+        <div class="actions">
+          <button class="grey" onclick="toggleLike('${post.id}',${liked})">
+            ${liked ? "Unlike" : "Like"}
+          </button>
+        </div>
+
+        ${postComments.map(c => {
+          const person = commentProfiles.find(p => p.id === c.author_id);
+          return `<p><b>${safe(person?.full_name || "User")}:</b> ${safe(c.content)}</p>`;
+        }).join("")}
+
+        <input id="comment-${post.id}" placeholder="Write a comment...">
+        <button class="blue" onclick="addComment('${post.id}')">Comment</button>
+      </div>
+    `;
+  }).join("");
+}
+
+/* LIKE */
+window.toggleLike = async (postId, liked) => {
+  if (liked) {
+    const { error } = await db.from("likes").delete()
+      .eq("post_id", postId)
+      .eq("user_id", currentUser.id);
+
+    if (error) return message(error.message);
+  } else {
+    const { error } = await db.from("likes").insert({
+      post_id: postId,
+      user_id: currentUser.id
+    });
+
+    if (error) return message(error.message);
+  }
+
+  await loadPosts();
+};
+
+/* COMMENT */
+window.addComment = async postId => {
+  const content = $("comment-" + postId).value.trim();
+  if (!content) return;
+
+  const { error } = await db.from("comments").insert({
+    post_id: postId,
+    author_id: currentUser.id,
+    content
+  });
+
+  if (error) return message(error.message);
+
+  await loadPosts();
+};
+
+/* SEARCH FRIENDS */
+$("searchBtn").onclick = async () => {
+  const term = $("friendSearch").value.trim();
+
+  if (term.length < 2) {
+    return message("Enter at least two letters.");
+  }
+
+  $("friendResults").textContent = "Searching...";
+
+  const { data, error } = await db.from("profiles")
+    .select("id,full_name")
+    .ilike("full_name", "%" + term + "%")
+    .neq("id", currentUser.id)
+    .limit(20);
+
+  if (error) {
+    $("friendResults").textContent = error.message;
+    return;
+  }
+
+  if (!data?.length) {
+    $("friendResults").textContent = "No people found.";
+    return;
+  }
+
+  $("friendResults").innerHTML = data.map(person => `
+    <div class="actions">
+      <b>${safe(person.full_name || "FaceWorld User")}</b>
+      <button class="blue" onclick="sendRequest('${person.id}')">Add Friend</button>
+    </div>
+  `).join("");
+};
+
+/* SEND FRIEND REQUEST */
+window.sendRequest = async targetId => {
+  const { error } = await db.rpc("send_friend_request", {
+    target_id: targetId
+  });
+
+  if (error) return message(error.message);
+
+  message("Friend request sent!");
+  await loadFriends();
+};
+
+/* LOAD FRIENDS */
+async function loadFriends() {
+  const { data: requests, error } = await db.from("friend_requests")
+    .select("*")
+    .eq("receiver_id", currentUser.id)
+    .eq("status", "pending");
+
+  if (error) {
+    $("friendRequests").textContent = error.message;
+    return;
+  }
+
+  if (!requests?.length) {
+    $("friendRequests").textContent = "No new friend requests.";
+  } else {
+    const ids = requests.map(r => r.sender_id);
+
+    const { data: senders } = await db.from("profiles")
+      .select("id,full_name").in("id", ids);
+
+    $("friendRequests").innerHTML = requests.map(r => {
+      const person = senders?.find(p => p.id === r.sender_id);
+
+      return `
+        <div class="actions">
+          <b>${safe(person?.full_name || "User")}</b>
+          <button class="blue" onclick="respondRequest('${r.id}','accepted')">Accept</button>
+          <button class="grey" onclick="respondRequest('${r.id}','rejected')">Reject</button>
+        </div>
+      `;
+    }).join("");
+  }
+
+  const { data: accepted, error: acceptedError } = await db
+    .from("friend_requests")
+    .select("*")
+    .eq("status", "accepted")
+    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+
+  if (acceptedError) {
+    $("myFriends").textContent = acceptedError.message;
+    return;
+  }
+
+  if (!accepted?.length) {
+    $("myFriends").textContent = "You have no friends yet.";
+    return;
+  }
+
+  const friendIds = accepted.map(r =>
+    r.sender_id === currentUser.id ? r.receiver_id : r.sender_id
+  );
+
+  const { data: friends } = await db.from("profiles")
+    .select("id,full_name").in("id", friendIds);
+
+  $("myFriends").innerHTML = (friends || []).map(person =>
+    `<p>👤 ${safe(person.full_name || "FaceWorld User")}</p>`
+  ).join("");
+}
+
+/* ACCEPT OR REJECT */
+window.respondRequest = async (requestId, decision) => {
+  const { error } = await db.rpc("respond_friend_request", {
+    request_id: requestId,
+    decision
+  });
+
+  if (error) return message(error.message);
+
+  message("Friend request updated.");
+  await loadFriends();
+};
+
+</script>
+</body>
+</html>
